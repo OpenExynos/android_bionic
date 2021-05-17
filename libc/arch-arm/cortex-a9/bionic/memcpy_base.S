@@ -173,6 +173,11 @@ ENTRY_PRIVATE(MEMCPY_BASE_ALIGNED)
         strbcs      r5, [r0], #1
 
 2:
+	/* check 32K size */
+	cmp	r2, #(32 * 1024)
+	bge	.L_check_dst_align
+
+	/* case 1: size < 32K */
         subs        r2, r2, #64
         blt         4f
 
@@ -195,6 +200,45 @@ ENTRY_PRIVATE(MEMCPY_BASE_ALIGNED)
         stmia       r0!, {r3, r4, r5, r6, r7, r8, r12, lr}
         subs        r2, #32
 
+	b	.L_less_than_32_left
+
+	/* case 2: size > 32K */
+
+.L_check_dst_align:
+        /* align the destination to a cache-line */
+        rsb         r3, r0, #0
+        ands        r3, r3, #0x1C
+	beq	.L_dst_32B_aligned
+        cmp         r3, r2
+	it	hi
+        andhi       r3, r2, #0x1C
+
+        /* conditionally copies 0 to 7 words (length in r3) */
+        movs        r12, r3, lsl #28
+	itt	cs
+        ldmiacs     r1!, {r4, r5, r6, r7}   /* 16 bytes */
+        stmiacs     r0!, {r4, r5, r6, r7}
+	itt	mi
+        ldmiami     r1!, {r4, r5}           /*  8 bytes */
+        stmiami     r0!, {r4, r5}
+        tst         r3, #0x4
+	itt	ne
+        ldrne       r4,[r1], #4            /*  4 bytes */
+        strne       r4,[r0], #4
+        sub         r2, r2, r3
+
+.L_dst_32B_aligned:
+        subs        r2, r2, #32
+        blt         5f
+
+3:      /* Main copy loop, copying 32 bytes at a time */
+        pld         [r1, #(32 * 8)]
+        ldmia       r1!, {r3, r4, r5, r6, r7, r8, r12, lr}
+        stmia       r0!, {r3, r4, r5, r6, r7, r8, r12, lr}
+        subs        r2, r2, #32
+        bge         3b
+
+.L_less_than_32_left:
 5:      /* Handle any remaining bytes */
         adds        r2, #32
         beq         6f

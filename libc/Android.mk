@@ -611,6 +611,14 @@ ifneq ($(BOARD_MALLOC_ALIGNMENT),)
   libc_common_cflags += -DMALLOC_ALIGNMENT=$(BOARD_MALLOC_ALIGNMENT)
 endif
 
+ifneq ($(BOARD_MEMCPY_AARCH32),)
+  libc_common_cflags += -DMEMCPY_AARCH32=$(BOARD_MEMCPY_AARCH32)
+endif
+
+ifneq ($(BOARD_MEMCPY_MNGS),)
+  libc_common_cflags += -DMEMCPY_MNGS=$(BOARD_MEMCPY_MNGS)
+endif
+
 # Define some common conlyflags
 libc_common_conlyflags := \
     -std=gnu99
@@ -957,6 +965,7 @@ LOCAL_CXX_STL := none
 LOCAL_SYSTEM_SHARED_LIBRARIES :=
 LOCAL_ADDRESS_SANITIZER := false
 LOCAL_NATIVE_COVERAGE := $(bionic_coverage)
+LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
 
 $(eval $(call patch-up-arch-specific-flags,LOCAL_CFLAGS,libc_common_cflags))
 $(eval $(call patch-up-arch-specific-flags,LOCAL_SRC_FILES,libc_bionic_src_files))

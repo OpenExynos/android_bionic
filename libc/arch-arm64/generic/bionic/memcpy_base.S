@@ -151,6 +151,8 @@
 	 * 64 bytes per line this ensures the entire loop is in one line.  */
 	.p2align 6
 .Lcpy_body_large:
+	cmp     count, #(1024*1024)
+	b.ge    .Lcpy_body_mem_bound
 	/* There are at least 128 bytes to copy.  */
 	ldp	A_l, A_h, [src, #0]
 	sub	dst, dst, #16		/* Pre-bias.  */
@@ -176,4 +178,43 @@
 	add	dst, dst, #64 + 16
 	tst	count, #0x3f
 	b.ne	.Ltail63
+	ret
+.Lcpy_body_mem_bound:
+	add count, count, #64
+#ifdef MEMCPY_MNGS
+	mrs	tmp1, pmcr_el0
+	ubfx	tmp1, tmp1, #24, #8
+	cmp	tmp1, #0x53
+	b.ne	1f
+.Lmngs_copy:
+	ldp	A_l, A_h, [src, #0]
+	stnp	A_l, A_h, [dst, #0]
+	ldp	A_l, A_h, [src, #16]
+	stnp	A_l, A_h, [dst, #16]
+	ldp	A_l, A_h, [src, #32]
+	stnp	A_l, A_h, [dst, #32]
+	ldp	A_l, A_h, [src, #48]
+	stnp	A_l, A_h, [dst, #48]
+	add	src, src, #64
+	add	dst, dst, #64
+	subs	count, count, #64
+	b.ge	.Lmngs_copy
+	tst	count, #0x3f
+	b.ne	.Ltail63
+	ret
+#endif
+1:
+	prfm pldl1keep, [src, #(64*8)]
+	ldp     A_l, A_h, [src], #16
+	stp     A_l, A_h, [dst], #16
+	ldp     A_l, A_h, [src], #16
+	stp     A_l, A_h, [dst], #16
+	ldp     A_l, A_h, [src], #16
+	stp     A_l, A_h, [dst], #16
+	ldp     A_l, A_h, [src], #16
+	stp     A_l, A_h, [dst], #16
+	subs    count, count, #64
+	b.ge    1b
+	tst     count, #0x3f
+	b.ne    .Ltail63
 	ret

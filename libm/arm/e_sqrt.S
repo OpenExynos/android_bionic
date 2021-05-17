@@ -39,4 +39,6 @@ ENTRY(sqrt)
     bx          lr
 END(sqrt)
 
+#if (__LDBL_MANT_DIG__ == 53)
 ALIAS_SYMBOL(sqrtl, sqrt);
+#endif
